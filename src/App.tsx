@@ -82,7 +82,14 @@ const CLAS_POST_COLORES: Record<string, string> = {
 const CLAS_POST_ORDER = ["no exposicion", "exposicion leve", "exposicion grave", "sin establecer"];
 
 export default function App() {
-  const [cases, setCases] = useState<CaseRecord[]>(DEMO_DATA);
+  const [cases, setCases] = useState<CaseRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem("sivigila_cases");
+      return saved ? JSON.parse(saved) : DEMO_DATA;
+    } catch {
+      return DEMO_DATA;
+    }
+  });
   const [vistaMode, setVistaMode] = useState<"sivigila" | "postseg">("postseg");
 
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warning" } | null>(null);
@@ -93,11 +100,20 @@ export default function App() {
     setTimeout(() => setToast(null), 4000);
   };
 
+  // Guardar los casos en localStorage cada vez que cambien para evitar que se borren al recargar
+  useEffect(() => {
+    try {
+      localStorage.setItem("sivigila_cases", JSON.stringify(cases));
+    } catch (err) {
+      console.error("Error al guardar casos en localStorage:", err);
+    }
+  }, [cases]);
+
   // ── Estados de Google Drive
   const [activeLoadTab, setActiveLoadTab] = useState<"local" | "gdrive">("local");
   const [gdriveToken, setGdriveToken] = useState<string | null>(null);
   const [gdriveClientId, setGdriveClientId] = useState<string>(() => {
-    return (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || localStorage.getItem("gdrive_client_id") || "";
+    return (import.meta as any).env.VITE_GOOGLE_CLIENT_ID || localStorage.getItem("gdrive_client_id") || "863610981797-p7ktoiqe2sssd1dj7jilvrjginug3q9h.apps.googleusercontent.com";
   });
   const [driveFiles, setDriveFiles] = useState<any[]>([]);
   const [driveFolders, setDriveFolders] = useState<any[]>([]);
@@ -1090,71 +1106,16 @@ export default function App() {
           {activeLoadTab === "gdrive" && (
             <div className="bg-gray-50/50 p-4 rounded border border-gray-100 transition-all duration-300 space-y-4">
               {!gdriveToken ? (
-                <div className="space-y-4 max-w-2xl">
+                <div className="space-y-4 max-w-2xl bg-white p-4 sm:p-5 rounded-lg border border-gray-200">
                   <div className="space-y-1">
-                    <p className="text-xs font-bold text-gray-750">Conecta tu Carpeta de Google Drive</p>
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
-                      Carga y sincroniza directamente las planillas de Zoonosis guardadas en tu Drive (.xlsx o .csv) sin necesidad de descargarlas y subirlas localmente.
+                    <p className="text-sm font-bold text-gray-800">Conectar Carpeta de Google Drive</p>
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      Sincroniza y lee directamente las planillas de Zoonosis guardadas en tu cuenta de Google Drive (.xlsx o .csv) sin necesidad de descargarlas de manera local.
                     </p>
                   </div>
 
-                  {/* Config Google Client ID */}
-                  <div className="space-y-2 max-w-xl bg-white p-3 rounded border border-gray-200 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-bold text-gray-650 uppercase tracking-wide flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5 text-[#0A4057]" /> ID de Cliente de Google OAuth
-                      </label>
-                      <button 
-                        onClick={() => setShowConfigIdInput(!showConfigIdInput)}
-                        className="text-[10px] text-blue-600 hover:underline font-semibold"
-                      >
-                        {showConfigIdInput ? "Ocultar configuración" : "Configurar credenciales de acceso"}
-                      </button>
-                    </div>
-
-                    {(showConfigIdInput || !gdriveClientId) && (
-                      <div className="space-y-3 border-t border-gray-100 pt-3 transition-all">
-                        <div className="bg-yellow-50 border border-yellow-100 text-yellow-800 p-2.5 rounded text-[10px] space-y-1.5 leading-relaxed">
-                          <p className="font-bold uppercase tracking-wider text-[10px]">⚠️ Configuración requerida en tu Google Cloud Console:</p>
-                          <p>Para que tu ID de cliente funcione en este entorno seguro de AI Studio, debes registrar las siguientes URLs exactas en tu credencial de ID de cliente de OAuth 2.0 (Aplicación web):</p>
-                          <div className="space-y-1 bg-white/70 p-2 rounded border border-yellow-250 font-mono text-[10px] text-gray-800">
-                            <div>
-                              <span className="font-bold text-gray-600 block">🌐 Orígenes de JavaScript autorizados:</span>
-                              <code className="bg-gray-100 px-1 py-0.5 rounded select-all block mt-0.5">{window.location.origin}</code>
-                            </div>
-                            <div className="mt-1">
-                              <span className="font-bold text-gray-600 block">🔗 URIs de redireccionamiento autorizados:</span>
-                              <code className="bg-gray-100 px-1 py-0.5 rounded select-all block mt-0.5">{window.location.origin + window.location.pathname}</code>
-                            </div>
-                          </div>
-                          <p className="text-[10px] text-yellow-900 font-semibold">💡 Al presionar el botón de conectar se abrirá un popup seguro. Ya no se recargará de manera destructiva el iframe.</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={gdriveClientId}
-                            onChange={e => {
-                              setGdriveClientId(e.target.value);
-                              localStorage.setItem("gdrive_client_id", e.target.value);
-                            }}
-                            placeholder="Ej: 12345678-abcde.apps.googleusercontent.com"
-                            className="flex-1 text-[11px] font-mono border border-gray-200 px-2.5 py-1.5 rounded focus:outline-none focus:ring-1 focus:ring-[#0A4057]"
-                          />
-                          <a
-                            href="https://console.cloud.google.com/apis/credentials"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-gray-105 hover:bg-gray-200 text-gray-700 px-2.5 py-1.5 text-[10px] font-semibold rounded flex items-center gap-1 shrink-0 border"
-                          >
-                            Consola Google <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
                   {/* Connect Trigger */}
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
                     <button
                       onClick={handleConnectDrive}
                       className="flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 px-4 py-2.5 rounded-lg shadow-sm font-bold text-xs active:bg-gray-100 transition-all cursor-pointer"
@@ -1168,46 +1129,9 @@ export default function App() {
                       Conectar con Google Drive
                     </button>
                     
-                    <span className="text-[10px] text-gray-400">
-                      ← Presiona para autenticarte mediante ventana emergente segura.
+                    <span className="text-[11px] text-gray-400">
+                      ← Presionando aquí ingresarás de manera segura en un popup de Google.
                     </span>
-                  </div>
-
-                  {/* GUÍA DE DIAGNÓSTICO Y SOLUCIÓN DE ERRORES (PANTALLA DE CONSENTIMIENTO NO VERIFICADA O ERROR 403) */}
-                  <div className="bg-blue-50/70 border border-blue-100 rounded-lg p-3.5 space-y-3">
-                    <h3 className="text-xs font-bold text-blue-900 flex items-center gap-1.5 uppercase tracking-wider">
-                      🛠️ Guía de Diagnóstico rápido para Errores de Google (Error 403 / "Proceso de verificación")
-                    </h3>
-                    
-                    <div className="text-[11px] text-blue-955 space-y-2.5 leading-relaxed">
-                      <div className="space-y-0.5">
-                        <p className="font-bold text-blue-850">1. ¿Te sale "Acceso bloqueado: la app se está probando" (Error 403)?</p>
-                        <p className="text-gray-650">
-                          Esto ocurre porque tu ID de cliente en Google Cloud está en estado de "Prueba" (Publishing status: Testing). Google requiere que habilites explícitamente las cuentas autorizadas para probar:
-                        </p>
-                        <ul className="list-disc list-inside pl-1 text-[10.5px] space-y-0.5 text-gray-700 mt-1">
-                          <li>Entra a la <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank" rel="noreferrer" className="text-blue-600 underline font-semibold">Pantalla de consentimiento de OAuth de Google Cloud</a>.</li>
-                          <li>Busca la sección de <strong>Usuarios de prueba (Test users)</strong>.</li>
-                          <li>Haz clic en el botón <strong>+ ADD USERS (Agregar usuarios)</strong>.</li>
-                          <li>Escribe exactamente tu correo: <strong className="font-mono bg-blue-100/50 px-1 py-0.2 rounded select-all text-[11px]">evelynraveb@gmail.com</strong> y guárdalo. ¡Listo! Ya te permitirá ingresar sin bloqueos.</li>
-                        </ul>
-                      </div>
-
-                      <div className="space-y-0.5 border-t border-blue-100/60 pt-2">
-                        <p className="font-bold text-blue-850">2. ¿Dice que no se pudieron listar o ver los archivos?</p>
-                        <p className="text-gray-650 shadow-2xs">
-                          Esto es de fácil solución y suele ser causado por uno de estos dos motivos:
-                        </p>
-                        <ul className="list-decimal list-inside pl-1 text-[10.5px] space-y-1 text-gray-700 mt-1">
-                          <li>
-                            <strong>Falta activar la API en tu proyecto:</strong> Para poder consultar documentos remotamente, debes presionar "Habilitar" en la biblioteca de Google. Abre la <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noreferrer" className="text-blue-600 underline font-semibold">Página Oficial de Google Drive API</a> y clica el gran botón azul de <strong>Habilitar (Enable)</strong>.
-                          </li>
-                          <li>
-                            <strong>Casillas desmarcadas al iniciar sesión:</strong> Al iniciar sesión, Google muestra una pantalla con casillas para conceder permisos. Debes asegurarte de <strong>marcar/tildar</strong> obligatoriamente la casilla de <strong>"Ver y descargar todos los archivos de Google Drive..."</strong>. Si la dejas desmarcada, la sesión se conectará pero no tendrá permisos reales de lectura para listar tus planillas Excel.
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
                   </div>
                 </div>
               ) : (
@@ -1857,12 +1781,21 @@ export default function App() {
               )}
               {/* Divisor */}
               {availableWeeks.length > 1 && <div className="border-t border-gray-100" />}
+              {/* Opción: Restaurar demo */}
+              <button onClick={() => {
+                setCases(DEMO_DATA);
+                setModalLimpiar(false);
+                showToast("🔄 Datos de demostración restaurados.", "success");
+              }} className="w-full border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-850 text-xs font-bold px-4 py-2.5 rounded flex items-center justify-center gap-2 transition-all cursor-pointer">
+                <RefreshCw className="w-3.5 h-3.5 text-orange-600" />
+                Restaurar datos de prueba original
+              </button>
               {/* Opción: borrar todo */}
               <button onClick={() => {
                 setCases([]);
                 setModalLimpiar(false);
                 showToast("🧹 Todos los datos eliminados.", "warning");
-              }} className="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded flex items-center justify-center gap-2 transition-all">
+              }} className="w-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded flex items-center justify-center gap-2 transition-all cursor-pointer">
                 <Trash2 className="w-3.5 h-3.5" />
                 Eliminar todo ({cases.length} registros)
               </button>
