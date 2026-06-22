@@ -1,0 +1,6 @@
+{
+  "name": "Seguimiento Zoonosis Medellín",
+  "description": "Dashboard interactivo para el Seguimiento de Zoonosis de la Secretaría de Salud de Medellín",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
